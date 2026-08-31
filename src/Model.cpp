@@ -4,7 +4,6 @@
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <cmath>
 
 Model::Model(const std::string& modelPath, const std::string& texturePath) : VAO(0), VBO(0), texture(0), vertexCount(0)
 {
@@ -116,51 +115,43 @@ void Model::loadOBJ(const std::string& path)
 		else if (type == "f")
 		{
 			std::vector<std::string> faceElements;
-
 			std::string element;
 
 			while (stream >> element)
 			{
-			faceElements.push_back(element);
+				faceElements.push_back(element);
 			}
 
-			/*
-			* A face must contain at least 3 vertices.
-			*/
 			if (faceElements.size() < 3)
-			continue;
+				continue;
+
+			if (faceElements.size() > 4)
+			{
+				std::cerr << "Cara con mas de 4 vertices no soportada: " << path << "\n";
+				continue;
+			}
 
 			Vec3 color = getFaceColor(faceIndex);
 
-			/*
-			* Triangulate the face using a triangle fan:
-			*
-			*      0
-			*     / \
-			*    1---2
-			*     \ /
-			*      3
-			*
-			* becomes:
-			*
-			* (0,1,2)
-			* (0,2,3)
-			* ...
-			*
-			* This allows us to handle triangles,
-			* quads and larger polygons.
-			*/
-			for (size_t i = 1; i + 1 < faceElements.size(); ++i)
+			// --------------------------------
+			// Triangulación
+			// --------------------------------
+			size_t triangleCount = faceElements.size() - 2;
+
+			for (size_t triangle = 0; triangle < triangleCount; ++triangle)
 			{
-				std::string triangleElements[3] = {
-					faceElements[0],
-					faceElements[i],
-					faceElements[i + 1]
+				size_t indices[3] = {
+					0,
+					triangle + 1,
+					triangle + 2
 				};
 
 				for (int vertexIndex = 0; vertexIndex < 3; ++vertexIndex)
 				{
-					std::stringstream faceStream(triangleElements[vertexIndex]);
+					std::stringstream faceStream(
+						faceElements[indices[vertexIndex]]
+					);
+
 					std::string positionIndex;
 					std::string texCoordIndex;
 					std::string normalIndex;
@@ -170,71 +161,60 @@ void Model::loadOBJ(const std::string& path)
 					std::getline(faceStream, normalIndex, '/');
 
 					if (positionIndex.empty())
-					{
 						continue;
-					}
 
 					int p = std::stoi(positionIndex);
 
-					/*
-					* OBJ indices can be positive or negative.
-					*
-					* Positive:
-					* 1 = first vertex
-					*
-					* Negative:
-					* -1 = last vertex
-					*/
 					int positionCount = static_cast<int>(positions.size());
 
+					// Índices negativos del formato OBJ
 					if (p < 0)
 						p = positionCount + p + 1;
 
 					if (p <= 0 || p > positionCount)
 					{
-						std::cerr << "Indice de posicion invalido " << "en el modelo: " << path << "\n";
+						std::cerr << "Indice de posicion invalido en el modelo: "
+								<< path << "\n";
 						continue;
 					}
 
 					Vec3 position = positions[p - 1];
+
+					// --------------------------------
+					// Coordenadas de textura
+					// --------------------------------
 					Vec2 uv = {
 						0.0f,
 						0.0f
 					};
 
-					/*
-					* If the OBJ provides texture
-					* coordinates, use them.
-					*/
 					if (!texCoordIndex.empty())
 					{
 						int t = std::stoi(texCoordIndex);
+
 						int texCoordCount = static_cast<int>(texCoords.size());
+
 						if (t < 0)
-						{
 							t = texCoordCount + t + 1;
-						}
+
 						if (t > 0 && t <= texCoordCount)
-						{
 							uv = texCoords[t - 1];
-						}
 						else
-						{
 							uv = generateTextureCoordinate(position);
-						}
 					}
 					else
 					{
-						/*
-						* The OBJ has no UV.
-						* Generate one automatically.
-						*/
 						uv = generateTextureCoordinate(position);
 					}
 
-					vertices.push_back({position, color, uv});
+					vertices.push_back({
+						position,
+						color,
+						uv
+					});
 				}
 			}
+
 			faceIndex++;
 		}
 	}
