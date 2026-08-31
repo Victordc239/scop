@@ -9,7 +9,7 @@
 #include <cmath>
 #include <string>
 
-void processInput(GLFWwindow* window, Vec3& position, Vec3& rotation, bool& textureEnabled)
+void processInput(GLFWwindow* window, Vec3& position, Vec3& rotation, bool& textureEnabled, bool& materialEnabled, const Model& model)
 {
 	const float moveSpeed = 0.02f;
 	const float rotationSpeed = 0.02f;
@@ -126,8 +126,26 @@ void processInput(GLFWwindow* window, Vec3& position, Vec3& rotation, bool& text
 	if (currentT && !previousT)
 	{
 		textureEnabled = !textureEnabled;
+		if (textureEnabled)
+			materialEnabled = false;
 	}
 	previousT = currentT;
+
+	// --------------------------------
+	// Toggle material
+	// --------------------------------
+	static bool previousM = false;
+	bool currentM = glfwGetKey(window, GLFW_KEY_M) == GLFW_PRESS;
+	if (currentM && !previousM)
+	{
+		if (model.hasMaterial())
+		{
+			materialEnabled = !materialEnabled;
+			if (materialEnabled)
+				textureEnabled = false;
+		}
+	}
+	previousM = currentM;
 }
 
 void framebufferSizeCallback(GLFWwindow* window, int width, int height)
@@ -184,15 +202,18 @@ void runOpenGL(GLFWwindow* window, const std::string& modelPath, const std::stri
 	// Textura
 	// --------------------------------
 	bool textureEnabled = false;
+	bool materialEnabled = false;
+
 	float textureMix = 0.0f;
+	float materialMix = 0.0f;
 
 	// --------------------------------
 	// Cámara
 	// --------------------------------
 	Vec3 cameraPosition = {
+		3.0f,
 		0.0f,
-		0.0f,
-		3.0f
+		0.0f
 	};
 
 	Vec3 cameraTarget = {
@@ -213,8 +234,7 @@ void runOpenGL(GLFWwindow* window, const std::string& modelPath, const std::stri
 		// --------------------------------
 		// Input
 		// --------------------------------
-		processInput(window, objectPosition, objectRotation, textureEnabled);
-
+		processInput(window, objectPosition, objectRotation, textureEnabled, materialEnabled, model);
 		// --------------------------------
 		// Textura suave
 		// --------------------------------
@@ -224,13 +244,31 @@ void runOpenGL(GLFWwindow* window, const std::string& modelPath, const std::stri
 		{
 			textureMix += textureSpeed;
 			if (textureMix > 1.0f)
-			textureMix = 1.0f;
+				textureMix = 1.0f;
 		}
 		else
 		{
 			textureMix -= textureSpeed;
 			if (textureMix < 0.0f)
-			textureMix = 0.0f;
+				textureMix = 0.0f;
+		}
+
+		// --------------------------------
+		// Transición material suave
+		// --------------------------------
+		const float materialSpeed = 0.03f;
+
+		if (materialEnabled)
+		{
+			materialMix += materialSpeed;
+			if (materialMix > 1.0f)
+				materialMix = 1.0f;
+		}
+		else
+		{
+			materialMix -= materialSpeed;
+			if (materialMix < 0.0f)
+				materialMix = 0.0f;
 		}
 
 		// --------------------------------
@@ -269,9 +307,10 @@ void runOpenGL(GLFWwindow* window, const std::string& modelPath, const std::stri
 		shader.setMatrix("projection", projection);
 
 		// --------------------------------
-		// Textura
+		// Textura / material
 		// --------------------------------
 		shader.setFloat("textureMix", textureMix);
+		shader.setFloat("materialMix", materialMix);
 		shader.setInt("textureSampler", 0);
 
 		// --------------------------------

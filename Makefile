@@ -1,13 +1,17 @@
 NAME = scop
 
 CXX = c++
+CC = cc
 
 CXXFLAGS = -Wall -Wextra -Werror -std=c++17 -Iinclude -Ilibs/glad/include
+CFLAGS = -Wall -Wextra -Werror -Iinclude -Ilibs/glad/include
 
 CPP_SRC = src/main.cpp \
-		src/Shader.cpp \
-		src/Math.cpp \
-		src/Model.cpp
+          src/Shader.cpp \
+          src/Math.cpp \
+          src/Model.cpp \
+	    src/ParseObj.cpp \
+	    src/Materia.cpp
 
 C_SRC = libs/glad/src/gl.c
 
@@ -24,7 +28,7 @@ $(NAME): $(OBJ)
 	$(CXX) $(CXXFLAGS) -c $< -o $@
 
 %.o: %.c
-	$(CXX) $(CXXFLAGS) -c $< -o $@
+	$(CC) $(CFLAGS) -c $< -o $@
 
 clean:
 	rm -f $(OBJ)
